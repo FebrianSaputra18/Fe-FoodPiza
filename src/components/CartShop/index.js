@@ -1,24 +1,204 @@
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { FaPlus } from "react-icons/fa";
+import { FaPlus, FaTrash } from "react-icons/fa";
 import { addToCart, getCart } from "../../config/features/cartSlice";
-import { getAddress } from "../../config/features/addressSlice";
-import { Button, Label, Modal, Radio, Select } from "flowbite-react";
+import { getAddress, postAddress } from "../../config/features/addressSlice";
+import {
+  Button,
+  Checkbox,
+  Label,
+  Modal,
+  Radio,
+  TextInput,
+  Textarea,
+} from "flowbite-react";
 import { addToOrder } from "../../config/features/orderSlice";
 import { useNavigate } from "react-router-dom";
-import { getInvoice } from "../../config/features/invoiceSlice";
+import axios from "axios";
+import Select from "react-select";
+import toast, { Toaster } from "react-hot-toast";
 
 function CartList({ cartItems }) {
   const cartList = useSelector((state) => state.cart.cartItems);
   const addressList = useSelector((state) => state.address.addressItems);
   const data = addressList.data;
-  const navigate = useNavigate()
+  const navigate = useNavigate();
   const dispatch = useDispatch();
   const [subtotal, setSubtotal] = useState(0);
   const [deliveryFee, setDeliveryFee] = useState(0);
   const [totalAll, setTotalAll] = useState(0);
   const [openModal, setOpenModal] = useState(false);
+  const [openModalTrash, setOpenModalTrash] = useState(false);
   const [selectedAddress, setSelectedAddress] = useState(null);
+
+  const [dataProvinces, setDataProvinces] = useState([]);
+  const [dataRegencies, setDataRegencies] = useState([]);
+  const [dataDistricts, setDataDistricts] = useState([]);
+  const [dataVillages, setDataVillages] = useState([]);
+
+  const [name, setName] = useState("");
+  const [provincesSelect, setProvincesSelect] = useState("");
+  const [regenciesSelect, setRegenciesSelect] = useState("");
+  const [districtsSelect, setDistrictsSelect] = useState("");
+  const [villagesSelect, setVillagesSelect] = useState("");
+  const [details, setDetails] = useState("");
+
+  // const [selectedAddresses, setSelectedAddresses] = useState([]);
+  // const [dataCheckbok, setDataCheckbok] = useState([]);
+
+  // const handleCheckboxChange = (e, id) => {
+  //   if (e.target.checked) {
+  //     setSelectedAddresses([...selectedAddresses, id]);
+  //   } else {
+  //     setSelectedAddresses(
+  //       selectedAddresses.filter((selectedId) => selectedId !== id)
+  //     );
+  //   }
+  // };
+
+  // const handleDelete = () => {
+  //   // Kirim permintaan ke endpoint delete address dengan selectedAddresses
+  //   // Implementasi penghapusan sesuai kebutuhan aplikasi Anda
+  //   // Pastikan Anda memiliki endpoint delete address yang sesuai di backend Anda
+  // };
+
+  useEffect(() => {
+    const provinsi = async () => {
+      const response = await axios
+        .get("http://www.emsifa.com/api-wilayah-indonesia/api/provinces.json")
+        .catch((error) => {
+          // Handle errors here
+          console.error("Error:", error);
+        });
+      const provinces = await response.data;
+      const result = provinces.map((data) => {
+        return {
+          label: data.name,
+          value: data.id,
+        };
+      });
+      console.log("Provinsi", result);
+      setDataProvinces(result.sort((a, b) => a.label.localeCompare(b.label)));
+    };
+    provinsi();
+  }, []);
+
+  useEffect(() => {
+    const kabupaten = async () => {
+      const response = await axios
+        .get(
+          `https://www.emsifa.com/api-wilayah-indonesia/api/regencies/${provincesSelect}.json`
+        )
+        .catch((error) => {
+          // Handle errors here
+          console.error("Error:", error);
+        });
+      const regencies = await response.data;
+      const result = regencies.map((data) => {
+        return {
+          label: data.name,
+          value: data.id,
+        };
+      });
+      console.log("Kabupaten", result);
+      setDataRegencies(result.sort((a, b) => a.label.localeCompare(b.label)));
+    };
+    if (provincesSelect > 0) {
+      kabupaten();
+    }
+  }, [provincesSelect]);
+
+  useEffect(() => {
+    const kecamatan = async () => {
+      const response = await axios
+        .get(
+          `https://www.emsifa.com/api-wilayah-indonesia/api/districts/${regenciesSelect}.json`
+        )
+        .catch((error) => {
+          // Handle errors here
+          console.error("Error:", error);
+        });
+      const districts = await response.data;
+      const result = districts.map((data) => {
+        return {
+          label: data.name,
+          value: data.id,
+        };
+      });
+      console.log("Kecamatan", result);
+      setDataDistricts(result.sort((a, b) => a.label.localeCompare(b.label)));
+    };
+    if (regenciesSelect > 0) {
+      kecamatan();
+    }
+  }, [regenciesSelect]);
+
+  useEffect(() => {
+    const kelurahan = async () => {
+      const response = await axios
+        .get(
+          `https://www.emsifa.com/api-wilayah-indonesia/api/villages/${districtsSelect}.json`
+        )
+        .catch((error) => {
+          // Handle errors here
+          console.error("Error:", error);
+        });
+      const villages = await response.data;
+      const result = villages.map((data) => {
+        return {
+          label: data.name,
+          value: data.id,
+        };
+      });
+      console.log("Kelurahan", result);
+      setDataVillages(result.sort((a, b) => a.label.localeCompare(b.label)));
+    };
+    if (districtsSelect > 0) {
+      kelurahan();
+    }
+  }, [districtsSelect]);
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    if (!name || !details) {
+      alert("Mohon isi nama dan detail alamat.");
+      return;
+    }
+    const selectedProvince = dataProvinces.find(
+      (province) => province.value === provincesSelect
+    );
+    const selectedRegencie = dataRegencies.find(
+      (regencie) => regencie.value === regenciesSelect
+    );
+    const selectedDistrict = dataDistricts.find(
+      (district) => district.value === districtsSelect
+    );
+    const selectedVillage = dataVillages.find(
+      (village) => village.value === villagesSelect
+    );
+
+    const submitAddress = {
+      nama: name,
+      provinsi: selectedProvince.label,
+      kabupaten: selectedRegencie.label,
+      kecamatan: selectedDistrict.label,
+      kelurahan: selectedVillage.label,
+      detail: details,
+    };
+
+    console.log(submitAddress, "submitAddress Done!");
+
+    try {
+      await dispatch(postAddress(submitAddress)).then((response) => {
+        toast.success("alamat berhasil dibuat!");
+        console.log("Address added : ", response);
+        setOpenModal(false);
+        dispatch(getAddress());
+      });
+    } catch (error) {
+      console.error(error, " errrrrr bang");
+    }
+  };
 
   useEffect(() => {
     const fecthData = async () => {
@@ -95,31 +275,42 @@ function CartList({ cartItems }) {
       console.error("Item not found");
     }
   };
-  // const handlePayment = (e) => {
-  //   e.preventDefault();
-  //   const dataOrder = {
-  //     delivery_fee: deliveryFee,
-  //     delivery_address: selectedAddress,
-  //     cart: cartList
-  //   }
-  //   dispatch(addToOrder(dataOrder))
-  //   console.log("data order", dataOrder);
-  //   navigate(`/invoice/${response.payload.order.in_id}`);
-  // }
   const handlePayment = (e) => {
     e.preventDefault();
     const dataOrder = {
       delivery_fee: deliveryFee,
       delivery_address: selectedAddress,
-      cart: cartList
+      cart: cartList,
     };
-    dispatch(addToOrder(dataOrder))
-    navigate('/order')
+    dispatch(addToOrder(dataOrder));
+    navigate("/order");
   };
 
   return (
     <>
       <div className="grid grid-cols-2">
+        <Toaster
+          position="center-top"
+          reverseOrder={false}
+          containerClassName=""
+          toastOptions={{
+            // Define default options
+            className: "",
+            duration: 5000,
+            style: {
+              background: "#363636",
+              color: "#fff",
+            },
+
+            success: {
+              duration: 3000,
+              theme: {
+                primary: "green",
+                secondary: "black",
+              },
+            },
+          }}
+        />
         <section aria-labelledby="cart-heading">
           {cartList && cartList.length > 0 ? (
             cartList?.map((item) => (
@@ -176,9 +367,11 @@ function CartList({ cartItems }) {
                     type="radio"
                     id={`address_${item._id}`}
                     name="addresses"
-                    value={`${item.nama} | ${item.kelurahan}, ${item.kecamatan}, ${item.kabupaten}, ${item.provinsi} ${item.detail}`} // Menggunakan nilai yang unik sebagai value
-                    onChange={() => setSelectedAddress(item)} // Mengatur alamat yang dipilih saat radio button diubah
-                    checked={selectedAddress && selectedAddress._id === item._id} // Mengecek apakah alamat yang dipilih sesuai dengan alamat saat ini
+                    value={`${item.nama} | ${item.kelurahan}, ${item.kecamatan}, ${item.kabupaten}, ${item.provinsi} ${item.detail}`}
+                    onChange={() => setSelectedAddress(item)}
+                    checked={
+                      selectedAddress && selectedAddress._id === item._id
+                    }
                     className="mr-2"
                   />
                   <Label className="text-white" htmlFor={`address_${item._id}`}>
@@ -188,13 +381,20 @@ function CartList({ cartItems }) {
                   </Label>
                 </div>
               ))}
-              <div className="text-end">
+              <div className="text-end gap-2">
                 <button
                   onClick={() => setOpenModal(true)}
                   className="btn bg-white text-gray-800 p-2 w-15 rounded-full"
                 >
                   {" "}
                   <FaPlus />
+                </button>
+                <button
+                  onClick={() => setOpenModalTrash(true)}
+                  className="btn bg-white text-gray-800 p-2 w-15 rounded-full"
+                >
+                  {" "}
+                  <FaTrash />
                 </button>
               </div>
             </fieldset>
@@ -222,7 +422,10 @@ function CartList({ cartItems }) {
               </div>
               <hr className="col-span-6" />
               <div className="col-span-6 flex flex justify-center py-5">
-                <button onClick={handlePayment} className="btn bg-gray-800 text-white w-80 h-10 rounded-full">
+                <button
+                  onClick={handlePayment}
+                  className="btn bg-gray-800 text-white w-80 h-10 rounded-full"
+                >
                   Payment
                 </button>
               </div>
@@ -231,25 +434,104 @@ function CartList({ cartItems }) {
         </section>
         <Modal
           show={openModal}
+          size="5xl"
           position="center"
           onClose={() => setOpenModal(false)}
         >
           <Modal.Header>Tambah Alamat</Modal.Header>
-          <form className="flex max-w-md flex-col gap-4">
+          <form onSubmit={handleSubmit}>
             <Modal.Body>
-              <div className="max-w-md">
-                <div className="mb-2 block">
-                  <Label htmlFor="countries" value="Select your country" />
+              <div className="w-lg my-6 flex gap-2">
+                <div className="mb-2 w-full">
+                  <Label htmlFor="countries" value="Nama Lengkap" />
+                  <TextInput
+                    type="text"
+                    value={name}
+                    className="pb-4"
+                    required
+                    onChange={(e) => setName(e.target.value)}
+                  />
+                  <Label htmlFor="countries" value="Tambahkan Keterangan" />
+                  <Textarea
+                    placeholder="Leave a comment..."
+                    required
+                    className="pb-4"
+                    value={details}
+                    onChange={(e) => setDetails(e.target.value)}
+                    rows={4}
+                  />
                 </div>
-                <Select id="countries" required></Select>
+                <div className="mb-2 w-full">
+                  <Label htmlFor="provinsi" value="Provinsi" />
+                  <Select
+                    options={dataProvinces}
+                    onChange={(e) => setProvincesSelect(e.value)}
+                    required
+                    className="pb-4"
+                  ></Select>
+                  <Label htmlFor="regencies" value="Kota/Kabupaten" />
+                  <Select
+                    options={dataRegencies}
+                    onChange={(e) => setRegenciesSelect(e.value)}
+                    required
+                    className="pb-4"
+                  ></Select>
+                  <Label htmlFor="districs" value="Kecamatan" />
+                  <Select
+                    options={dataDistricts}
+                    onChange={(e) => setDistrictsSelect(e.value)}
+                    required
+                    className="pb-4"
+                  ></Select>
+                  <Label htmlFor="villages" value="Kelurahan/Desa" />
+                  <Select
+                    options={dataVillages}
+                    onChange={(e) => setVillagesSelect(e.value)}
+                    required
+                    className="pb-4"
+                  ></Select>
+                </div>
               </div>
+              <Modal.Footer>
+                <Button type="submit">I accept</Button>
+                <Button color="gray" onClick={() => setOpenModal(false)}>
+                  Decline
+                </Button>
+              </Modal.Footer>
             </Modal.Body>
-            <Modal.Footer>
-              <Button onClick={() => setOpenModal(false)}>I accept</Button>
-              <Button color="gray" onClick={() => setOpenModal(false)}>
-                Decline
-              </Button>
-            </Modal.Footer>
+          </form>
+        </Modal>
+        <Modal
+          show={openModalTrash}
+          size="5xl"
+          position="center"
+          onClose={() => setOpenModalTrash(false)}
+        >
+          <Modal.Header>Hapus Alamat!</Modal.Header>
+          <form >
+            <Modal.Body>
+              {data?.map((item) => (
+                <div key={item._id} className="flex items-center gap-2">
+                  <Checkbox
+                    id={`checkbox_${item._id}`}
+                    // onChange={(e) => handleCheckboxChange(e, item._id)}
+                    // checked={selectedAddresses.includes(item._id)}
+                    className="mr-2"
+                  />
+                  <Label className="outlane" htmlFor={`checkbox_${item._id}`}>
+                    {" "}
+                    {item.nama} | {item.kelurahan}, {item.kecamatan},
+                    {item.kabupaten}, {item.provinsi} <br /> {item.detail}
+                  </Label>
+                </div>
+              ))}
+              <Modal.Footer>
+                <Button onClick={() => setOpenModalTrash(false)} >I accept</Button>
+                <Button color="gray" onClick={() => setOpenModalTrash(false)}>
+                  Decline
+                </Button>
+              </Modal.Footer>
+            </Modal.Body>
           </form>
         </Modal>
       </div>
